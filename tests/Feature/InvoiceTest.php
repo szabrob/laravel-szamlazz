@@ -311,6 +311,22 @@ it('queries invoice data', function () {
     });
 });
 
+it('returns invoice data even when a response date is malformed', function () {
+    $body = str_replace(
+        ['<kelt>2026-11-11</kelt>', '<telj>2026-11-10</telj>', '<fizh>2026-11-19</fizh>'],
+        ['<kelt>-</kelt>', '<telj>0000-00-00</telj>', '<fizh>2026-11-19 10:30:00</fizh>'],
+        file_get_contents(__DIR__.'/../Fixtures/responses/invoice-data.xml'),
+    );
+    Http::fake([AGENT_URL => Http::response($body)]);
+
+    $details = SzamlaAgent::invoice(InvoiceLookup::byInvoiceNumber('E-TEST-2026-1'));
+
+    expect($details->invoiceNumber)->toBe('E-TEST-2026-1')
+        ->and($details->issueDate)->toBeNull()
+        ->and($details->fulfillmentDate)->toBeNull()
+        ->and($details->dueDate?->toDateTimeString())->toBe('2026-11-19 00:00:00');
+});
+
 it('rejects an empty invoice lookup', function () {
     Http::fake();
 

@@ -244,8 +244,23 @@ class SzamlaAgent
         return $decoded === false ? null : $decoded;
     }
 
+    /**
+     * Parse a `Y-m-d` response date (a trailing time is ignored). A missing,
+     * malformed or impossible date (e.g. "0000-00-00") becomes null, so an
+     * already created document is never lost on a date parsing error.
+     */
     protected function date(?string $value): ?CarbonImmutable
     {
-        return $value === null ? null : CarbonImmutable::parse($value);
+        if ($value === null || preg_match('/^(\d{4})-(\d{2})-(\d{2})/', $value, $parts) !== 1) {
+            return null;
+        }
+
+        [, $year, $month, $day] = array_map(intval(...), $parts);
+
+        if (! checkdate($month, $day, $year)) {
+            return null;
+        }
+
+        return CarbonImmutable::create($year, $month, $day);
     }
 }

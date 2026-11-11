@@ -77,6 +77,19 @@ it('queries a receipt', function () {
     });
 });
 
+it('returns the receipt even when its date is malformed', function () {
+    Http::fake([AGENT_URL => Http::response(str_replace(
+        '<kelt>2026-11-11</kelt>',
+        '<kelt>2026.11.11.</kelt>',
+        file_get_contents(__DIR__.'/../Fixtures/responses/receipt.xml'),
+    ))]);
+
+    $result = SzamlaAgent::receipt(ReceiptLookup::byReceiptNumber('NYGT-2026-1'));
+
+    expect($result->receiptNumber)->toBe('NYGT-2026-1')
+        ->and($result->issueDate)->toBeNull();
+});
+
 it('rejects an empty receipt lookup', function () {
     SzamlaAgent::receipt(new ReceiptLookup);
 })->throws(InvalidArgumentException::class);
