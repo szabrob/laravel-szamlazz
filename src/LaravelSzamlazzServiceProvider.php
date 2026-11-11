@@ -18,7 +18,9 @@ class LaravelSzamlazzServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__.'/../config/laravel-szamlazz.php', 'laravel-szamlazz');
 
-        $this->app->singleton(SzamlaAgent::class, function (Application $app): SzamlaAgent {
+        // Not a singleton: every resolution reads the current config, so runtime
+        // config changes (tenancy, Octane requests, queue jobs) apply on the next call.
+        $this->app->bind(SzamlaAgent::class, function (Application $app): SzamlaAgent {
             $config = $app->make('config');
 
             return new SzamlaAgent(

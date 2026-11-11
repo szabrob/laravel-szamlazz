@@ -194,8 +194,6 @@ it('reports maintenance', function () {
 
 it('requires credentials', function () {
     config()->set('laravel-szamlazz.api_key', null);
-    app()->forgetInstance(Szabrob\LaravelSzamlazz\SzamlaAgent::class);
-    SzamlaAgent::clearResolvedInstances();
     Http::fake();
 
     SzamlaAgent::createInvoice(invoice());

@@ -155,12 +155,16 @@ SzamlaAgent::reverseReceipt(new ReceiptReversal($receipt->receiptNumber));
 
 ### Multiple accounts
 
+The client reads the package config on every facade call and every container resolution, so changing `laravel-szamlazz.*` at runtime (tenancy middleware, Octane requests, queue jobs) applies to the next call. To pick an account explicitly, pass credentials per call:
+
 ```php
 use Szabrob\LaravelSzamlazz\Data\Credentials;
 
 SzamlaAgent::withCredentials(Credentials::fromApiKey($tenant->szamlazz_key))
     ->createInvoice($invoice);
 ```
+
+An instance injected into a long-lived object (for example a singleton's constructor) keeps the config it was created with. Resolve the client where you use it, or use `withCredentials()`.
 
 ### Error handling
 

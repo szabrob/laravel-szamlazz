@@ -35,6 +35,11 @@ use Szabrob\LaravelSzamlazz\Data\Results\ReceiptResult;
  */
 class SzamlaAgent extends Facade
 {
+    /**
+     * Resolve a fresh client on every call so it always uses the current config.
+     */
+    protected static $cached = false;
+
     protected static function getFacadeAccessor(): string
     {
         return \Szabrob\LaravelSzamlazz\SzamlaAgent::class;
