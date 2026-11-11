@@ -7,9 +7,11 @@ namespace Szabrob\LaravelSzamlazz\Data\Invoice;
 use Spatie\LaravelData\Data;
 
 /**
- * An invoice line. Missing net, VAT and gross amounts are calculated from the
- * quantity, net unit price and a numeric VAT rate (non-numeric rates such as
- * "AAM" or "TAM" calculate zero VAT).
+ * An invoice line. Missing net, VAT and gross amounts are derived from the given
+ * ones (so net + VAT always equals gross), falling back to quantity × net
+ * unit price and a numeric VAT rate. Non-numeric rates such as "AAM" or
+ * "TAM" count as zero VAT. Three given amounts that do not add up throw an
+ * InvalidArgumentException before the request is sent.
  */
 final class InvoiceItem extends Data
 {

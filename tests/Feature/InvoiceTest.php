@@ -92,6 +92,33 @@ it('creates an invoice from typed data and returns a typed result', function () 
     });
 });
 
+it('sends consistent amounts for a gross priced item', function () {
+    Http::fake([AGENT_URL => Http::response(file_get_contents(__DIR__.'/../Fixtures/responses/invoice.xml'))]);
+
+    SzamlaAgent::createInvoice(invoice(['items' => [
+        ['name' => 'Bérlet', 'quantity' => 1, 'unit' => 'db', 'netUnitPrice' => 10236.22, 'vatRate' => '27', 'grossAmount' => 13000],
+    ]]));
+
+    Http::assertSent(function (Request $request): bool {
+        $xml = sentXml($request, 'action-xmlagentxmlfile');
+        expectValidAgainstXsd($xml, 'xmlszamla');
+
+        return str_contains($xml, '<nettoErtek>10236.22</nettoErtek>')
+            && str_contains($xml, '<afaErtek>2763.78</afaErtek>')
+            && str_contains($xml, '<bruttoErtek>13000</bruttoErtek>');
+    });
+});
+
+it('rejects inconsistent item amounts before sending', function () {
+    Http::fake();
+
+    expect(fn () => SzamlaAgent::createInvoice(invoice(['items' => [
+        ['name' => 'Tárhely', 'quantity' => 1, 'unit' => 'db', 'netUnitPrice' => 100, 'vatRate' => '27', 'netAmount' => 100, 'vatAmount' => 27, 'grossAmount' => 130],
+    ]])))->toThrow(InvalidArgumentException::class, 'line item [Tárhely]');
+
+    Http::assertNothingSent();
+});
+
 it('casts invoice input into typed values', function () {
     $invoice = invoice();
 

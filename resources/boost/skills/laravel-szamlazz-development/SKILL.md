@@ -29,7 +29,7 @@ Use this skill when a Laravel application needs to create or manage Számlázz.h
 
 - invoices: `Data\Invoice\Invoice` with `Buyer`, optional `Seller`, `InvoiceItem[]`; `type` is an `Enums\InvoiceType` (Invoice, Proforma, Prepayment, Final, Corrective, DeliveryNote)
 - dates accept `Y-m-d` strings or `DateTimeInterface`; enums accept their backing values in `::from([...])`
-- item `netAmount`/`vatAmount`/`grossAmount` are calculated when omitted; `vatRate` is a string ("27", "5", "0", "AAM", "TAM", "EU", ...)
+- item `netAmount`/`vatAmount`/`grossAmount` are filled in when omitted so net + VAT = gross (gross-only prices work); three given amounts that do not add up throw `InvalidArgumentException`; `vatRate` is a string ("27", "5", "0", "AAM", "TAM", "EU", ...)
 - receipts: `Data\Receipt\Receipt` with `ReceiptItem[]` and optional `ReceiptPayment[]`; use `callId` as an idempotency key
 
 ### 3. Call the client

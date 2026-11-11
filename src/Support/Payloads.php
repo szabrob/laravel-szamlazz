@@ -301,7 +301,7 @@ final class Payloads
      */
     private function invoiceItem(InvoiceItem $item): array
     {
-        $amounts = Amounts::resolve($item->quantity, $item->netUnitPrice, $item->vatRate, $item->netAmount, $item->vatAmount, $item->grossAmount);
+        $amounts = Amounts::resolve($item->quantity, $item->netUnitPrice, $item->vatRate, $item->netAmount, $item->vatAmount, $item->grossAmount, $item->name);
 
         return [
             'megnevezes' => $item->name,
@@ -323,7 +323,7 @@ final class Payloads
      */
     private function receiptItem(ReceiptItem $item): array
     {
-        $amounts = Amounts::resolve($item->quantity, $item->netUnitPrice, $item->vatRate, $item->netAmount, $item->vatAmount, $item->grossAmount);
+        $amounts = Amounts::resolve($item->quantity, $item->netUnitPrice, $item->vatRate, $item->netAmount, $item->vatAmount, $item->grossAmount, $item->name);
 
         return [
             'megnevezes' => $item->name,

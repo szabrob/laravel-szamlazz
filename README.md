@@ -89,7 +89,7 @@ if ($result->hasPdf()) {
 }
 ```
 
-Line item `netAmount`, `vatAmount` and `grossAmount` are calculated from `quantity × netUnitPrice` and a numeric `vatRate` when omitted. Non-numeric VAT keys such as `AAM`, `TAM` or `EU` calculate zero VAT.
+Line item `netAmount`, `vatAmount` and `grossAmount` are filled in when omitted, so net + VAT always equals gross. Missing amounts are derived from the given ones first (e.g. only `grossAmount` → net and VAT are calculated back from the gross), otherwise from `quantity × netUnitPrice` and a numeric `vatRate`. Non-numeric VAT keys such as `AAM`, `TAM` or `EU` count as zero VAT. If you pass all three amounts and they do not add up, an `InvalidArgumentException` is thrown before anything is sent.
 
 Set `type` to an `InvoiceType` to create other documents:
 
