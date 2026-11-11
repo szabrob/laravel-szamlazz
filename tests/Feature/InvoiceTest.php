@@ -223,6 +223,37 @@ it('clears payments without sending an empty payment element', function () {
     });
 });
 
+it('rejects more than five payments before sending', function () {
+    Http::fake();
+
+    $payment = ['date' => '2026-11-12', 'method' => 'átutalás', 'amount' => 100];
+
+    expect(fn () => SzamlaAgent::registerPayment(PaymentRegistration::from([
+        'invoiceNumber' => 'E-TEST-2026-1',
+        'payments' => array_fill(0, 6, $payment),
+    ])))->toThrow(InvalidArgumentException::class, 'at most 5 payments per registration, 6 given');
+
+    Http::assertNothingSent();
+});
+
+it('accepts exactly five payments', function () {
+    Http::fake([AGENT_URL => Http::response('', 200, ['szlahu_szamlaszam' => 'E-TEST-2026-1'])]);
+
+    $payment = ['date' => '2026-11-12', 'method' => 'átutalás', 'amount' => 100];
+
+    SzamlaAgent::registerPayment(PaymentRegistration::from([
+        'invoiceNumber' => 'E-TEST-2026-1',
+        'payments' => array_fill(0, 5, $payment),
+    ]));
+
+    Http::assertSent(function (Request $request): bool {
+        $xml = sentXml($request, 'action-szamla_agent_kifiz');
+        expectValidAgainstXsd($xml, 'xmlszamlakifiz');
+
+        return substr_count($xml, '<kifizetes>') === 5;
+    });
+});
+
 it('downloads an invoice pdf', function () {
     Http::fake([AGENT_URL => Http::response('%PDF-1.4 test', 200, ['Content-Type' => 'application/pdf'])]);
 

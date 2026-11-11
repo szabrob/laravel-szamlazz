@@ -35,7 +35,7 @@ Use this skill when a Laravel application needs to create or manage Számlázz.h
 ### 3. Call the client
 
 - `createInvoice(Invoice): InvoiceResult`, `reverseInvoice(InvoiceReversal): InvoiceResult`
-- `registerPayment(PaymentRegistration): void`
+- `registerPayment(PaymentRegistration): void` (max 5 payments per call, more throws `InvalidArgumentException` before sending)
 - `invoicePdf(InvoiceLookup): string` (raw PDF bytes), `invoice(InvoiceLookup, bool $withPdf = false): InvoiceDetails`
 - `deleteProforma(InvoiceLookup): void` (invoice number or order number only)
 - `createReceipt(Receipt)`, `reverseReceipt(ReceiptReversal)`, `receipt(ReceiptLookup)` return `ReceiptResult`; `sendReceipt(ReceiptEmail): void`

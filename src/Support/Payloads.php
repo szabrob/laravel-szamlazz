@@ -150,6 +150,14 @@ final class Payloads
 
     public function paymentRegistration(PaymentRegistration $registration): string
     {
+        if (count($registration->payments) > PaymentRegistration::MAX_PAYMENTS) {
+            throw new InvalidArgumentException(sprintf(
+                'Számla Agent accepts at most %d payments per registration, %d given.',
+                PaymentRegistration::MAX_PAYMENTS,
+                count($registration->payments),
+            ));
+        }
+
         return $this->xml(Action::RegisterPayment, [
             'beallitasok' => [
                 ...$this->auth(),

@@ -113,7 +113,7 @@ use Szabrob\LaravelSzamlazz\Data\Invoice\PaymentRegistration;
 // Storno
 $reversal = SzamlaAgent::reverseInvoice(new InvoiceReversal(invoiceNumber: 'E-ABC-2026-1'));
 
-// Register a payment (jóváírás)
+// Register payments (jóváírás), at most 5 per call
 SzamlaAgent::registerPayment(PaymentRegistration::from([
     'invoiceNumber' => 'E-ABC-2026-1',
     'payments' => [
