@@ -1,23 +1,30 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
     "name": "szabrob/laravel-szamlazz",
-    "description": "Laravel integration for the Sz\u00e1ml\u00e1zz.hu Sz\u00e1mla Agent API.",
+    "description": "Laravel integration for the Számlázz.hu Számla Agent API.",
     "keywords": [
         "laravel",
-        "szabrob",
-        "laravel-szamlazz"
+        "szamlazz",
+        "szamlazz.hu",
+        "szamla-agent",
+        "invoice",
+        "szamla",
+        "szabrob"
     ],
     "homepage": "https://github.com/szabrob/laravel-szamlazz",
     "license": "MIT",
     "authors": [
         {
-            "name": "Szab\u00f3 R\u00f3bert",
+            "name": "Szabó Róbert",
             "email": "szaborobert995@gmail.com",
             "role": "Developer"
         }
     ],
     "require": {
         "php": "^8.3",
+        "ext-dom": "*",
+        "ext-libxml": "*",
+        "illuminate/http": "^12.0||^13.0",
         "illuminate/support": "^12.0||^13.0",
         "spatie/laravel-data": "^4.23"
     },
@@ -33,12 +40,12 @@
     },
     "autoload": {
         "psr-4": {
-            "LaravelSzamlazz\\LaravelSzamlazz\\": "src/"
+            "Szabrob\\LaravelSzamlazz\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "LaravelSzamlazz\\LaravelSzamlazz\\Tests\\": "tests/",
+            "Szabrob\\LaravelSzamlazz\\Tests\\": "tests/",
             "Workbench\\App\\": "workbench/app/",
             "Workbench\\Database\\Factories\\": "workbench/database/factories/",
             "Workbench\\Database\\Seeders\\": "workbench/database/seeders/"
@@ -88,10 +95,10 @@
     "extra": {
         "laravel": {
             "providers": [
-                "LaravelSzamlazz\\LaravelSzamlazz\\LaravelSzamlazzServiceProvider"
+                "Szabrob\\LaravelSzamlazz\\LaravelSzamlazzServiceProvider"
             ],
             "aliases": {
-                "LaravelSzamlazz": "LaravelSzamlazz\\LaravelSzamlazz\\Facades\\LaravelSzamlazz"
+                "SzamlaAgent": "Szabrob\\LaravelSzamlazz\\Facades\\SzamlaAgent"
             }
         }
     },

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<szamla xmlns="http://www.szamlazz.hu/szamla">
+    <alap>
+        <id>123456</id>
+        <szamlaszam>E-TEST-2026-1</szamlaszam>
+        <tipus>SZ</tipus>
+        <kelt>2026-11-11</kelt>
+        <telj>2026-11-10</telj>
+        <fizh>2026-11-19</fizh>
+        <fizmod>Átutalás</fizmod>
+        <devizanem>HUF</devizanem>
+    </alap>
+    <vevo>
+        <nev>Kovács Bt.</nev>
+        <adoszam>12345678-1-42</adoszam>
+        <email>buyer@example.com</email>
+    </vevo>
+    <osszegek>
+        <totalossz>
+            <netto>20000</netto>
+            <afa>5400</afa>
+            <brutto>25400</brutto>
+        </totalossz>
+    </osszegek>
+</szamla>

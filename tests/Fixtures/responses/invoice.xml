@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xmlszamlavalasz xmlns="http://www.szamlazz.hu/xmlszamlavalasz">
+    <sikeres>true</sikeres>
+    <szamlaszam>E-TEST-2026-1</szamlaszam>
+    <szamlanetto>20000</szamlanetto>
+    <szamlabrutto>25400</szamlabrutto>
+    <kintlevoseg>25400</kintlevoseg>
+    <vevoifiokurl>https://www.szamlazz.hu/szamla/?partguid=abc</vevoifiokurl>
+    <pdf>JVBERi0xLjQgdGVzdA==</pdf>
+</xmlszamlavalasz>

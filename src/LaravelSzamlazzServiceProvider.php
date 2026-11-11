@@ -2,10 +2,12 @@
 
 declare(strict_types=1);
 
-namespace LaravelSzamlazz\LaravelSzamlazz;
+namespace Szabrob\LaravelSzamlazz;
 
+use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Support\ServiceProvider;
-use LaravelSzamlazz\LaravelSzamlazz\Console\Commands\LaravelSzamlazzCommand;
+use Szabrob\LaravelSzamlazz\Data\Credentials;
 
 class LaravelSzamlazzServiceProvider extends ServiceProvider
 {
@@ -16,7 +18,23 @@ class LaravelSzamlazzServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__.'/../config/laravel-szamlazz.php', 'laravel-szamlazz');
 
-        $this->app->singleton(LaravelSzamlazz::class);
+        $this->app->singleton(SzamlaAgent::class, function (Application $app): SzamlaAgent {
+            $config = $app->make('config');
+
+            return new SzamlaAgent(
+                http: $app->make(HttpFactory::class),
+                credentials: new Credentials(
+                    apiKey: $this->nullableString($config->get('laravel-szamlazz.api_key')),
+                    username: $this->nullableString($config->get('laravel-szamlazz.username')),
+                    password: $this->nullableString($config->get('laravel-szamlazz.password')),
+                ),
+                baseUrl: $this->nullableString($config->get('laravel-szamlazz.base_url')) ?? SzamlaAgent::DEFAULT_BASE_URL,
+                timeout: (int) $config->get('laravel-szamlazz.timeout', 30),
+                eInvoice: (bool) $config->get('laravel-szamlazz.e_invoice', true),
+                downloadPdf: (bool) $config->get('laravel-szamlazz.download_pdf', true),
+                aggregator: $this->nullableString($config->get('laravel-szamlazz.aggregator')),
+            );
+        });
     }
 
     /**
@@ -24,8 +42,6 @@ class LaravelSzamlazzServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        $this->loadRoutesFrom(__DIR__.'/../routes/laravel-szamlazz.php');
-
         if (! $this->app->runningInConsole()) {
             return;
         }
@@ -33,9 +49,10 @@ class LaravelSzamlazzServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__.'/../config/laravel-szamlazz.php' => config_path('laravel-szamlazz.php'),
         ], ['laravel-szamlazz', 'laravel-szamlazz-config']);
+    }
 
-        $this->commands([
-            LaravelSzamlazzCommand::class,
-        ]);
+    private function nullableString(mixed $value): ?string
+    {
+        return is_string($value) && $value !== '' ? $value : null;
     }
 }

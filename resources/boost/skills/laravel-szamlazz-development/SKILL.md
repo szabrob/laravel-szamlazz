@@ -1,7 +1,8 @@
 ---
 name: laravel-szamlazz-development
 description: >
-  Configure and apply the Laravel Szamlazz package in Laravel applications.
+  Issue Számlázz.hu invoices, proformas and receipts from Laravel applications with the
+  szabrob/laravel-szamlazz Számla Agent client and its typed spatie/laravel-data DTOs.
 license: MIT
 metadata:
   author: Szabó Róbert
@@ -9,33 +10,68 @@ metadata:
 
 # Laravel Szamlazz
 
-Use this skill when a Laravel application needs to integrate the Laravel Szamlazz package.
+Use this skill when a Laravel application needs to create or manage Számlázz.hu documents through the Számla Agent API.
 
 ## Primary Goal
 
-- apply the `szabrob/laravel-szamlazz` package's public API in the smallest correct way
+- send typed DTOs through `Szabrob\LaravelSzamlazz\Facades\SzamlaAgent` (or inject `Szabrob\LaravelSzamlazz\SzamlaAgent`) and store the typed results
 
 ## Workflow
 
-### 1. Inspect the Laravel app context
+### 1. Install and configure
 
-- confirm the app is a Laravel project
-- inspect the target code paths where the package should be applied
+- `composer require szabrob/laravel-szamlazz`
+- set `SZAMLAZZ_API_KEY` in `.env` (or `SZAMLAZZ_USERNAME` + `SZAMLAZZ_PASSWORD`)
+- optional: `SZAMLAZZ_E_INVOICE`, `SZAMLAZZ_DOWNLOAD_PDF`, `SZAMLAZZ_TIMEOUT`, `SZAMLAZZ_AGGREGATOR`
+- publish config only when needed: `php artisan vendor:publish --tag="laravel-szamlazz-config"`
 
-### 2. Apply the package's public API
+### 2. Build requests with DTOs
 
-Document how to integrate Laravel Szamlazz here, replacing this placeholder with the integration steps for your package.
+- invoices: `Data\Invoice\Invoice` with `Buyer`, optional `Seller`, `InvoiceItem[]`; `type` is an `Enums\InvoiceType` (Invoice, Proforma, Prepayment, Final, Corrective, DeliveryNote)
+- dates accept `Y-m-d` strings or `DateTimeInterface`; enums accept their backing values in `::from([...])`
+- item `netAmount`/`vatAmount`/`grossAmount` are calculated when omitted; `vatRate` is a string ("27", "5", "0", "AAM", "TAM", "EU", ...)
+- receipts: `Data\Receipt\Receipt` with `ReceiptItem[]` and optional `ReceiptPayment[]`; use `callId` as an idempotency key
 
-## Rules, References, and Templates
+### 3. Call the client
 
-Read before executing:
+- `createInvoice(Invoice): InvoiceResult`, `reverseInvoice(InvoiceReversal): InvoiceResult`
+- `registerPayment(PaymentRegistration): void`
+- `invoicePdf(InvoiceLookup): string` (raw PDF bytes), `invoice(InvoiceLookup, bool $withPdf = false): InvoiceDetails`
+- `deleteProforma(InvoiceLookup): void` (invoice number or order number only)
+- `createReceipt(Receipt)`, `reverseReceipt(ReceiptReversal)`, `receipt(ReceiptLookup)` return `ReceiptResult`; `sendReceipt(ReceiptEmail): void`
+- per-tenant keys: `SzamlaAgent::withCredentials(Credentials::fromApiKey($key))->createInvoice(...)`
 
-- no additional resource files for this skill
+### 4. Handle results and errors
+
+- results expose `invoiceNumber` / `receiptNumber`, totals and `pdf` (raw bytes, hidden from `toArray()`); check `hasPdf()` before storing
+- failures throw `Exceptions\SzamlazzException` with `errorCode` (Számla Agent code) and `httpStatus`
 
 ## Examples
 
-- describe a representative integration scenario for Laravel Szamlazz
+```php
+use Szabrob\LaravelSzamlazz\Data\Invoice\Invoice;
+use Szabrob\LaravelSzamlazz\Facades\SzamlaAgent;
+
+$result = SzamlaAgent::createInvoice(Invoice::from([
+    'fulfillmentDate' => $order->paid_at,
+    'dueDate' => $order->paid_at,
+    'paymentMethod' => 'Bankkártya',
+    'orderNumber' => $order->number,
+    'paid' => true,
+    'buyer' => ['name' => $order->name, 'postCode' => $order->zip, 'city' => $order->city, 'address' => $order->street, 'email' => $order->email, 'sendEmail' => true],
+    'items' => $order->lines->map(fn ($line) => [
+        'name' => $line->name, 'quantity' => $line->qty, 'unit' => 'db', 'netUnitPrice' => $line->net_price, 'vatRate' => '27',
+    ])->all(),
+]));
+
+$order->update(['invoice_number' => $result->invoiceNumber]);
+```
+
+Testing in the app: fake `www.szamlazz.hu/*` with `Http::fake()` and return an `xmlszamlavalasz` XML body with `<sikeres>true</sikeres>` and `<szamlaszam>`.
 
 ## Anti-patterns
 
-- do not document package internals here; keep the skill focused on adoption in Laravel apps
+- do not build Számla Agent XML by hand or post to szamlazz.hu directly; use the DTOs and client
+- do not call `env()` for the key in app code; use the package config
+- do not use classes under `Szabrob\LaravelSzamlazz\Support` or `Enums\Action`; they are internal
+- do not create invoices inside a DB transaction that may roll back; store the returned invoice number after success

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xmlnyugtavalasz xmlns="http://www.szamlazz.hu/xmlnyugtavalasz">
+    <sikeres>true</sikeres>
+    <nyugtaPdf>JVBERi0xLjQgdGVzdA==</nyugtaPdf>
+    <nyugta>
+        <alap>
+            <id>98765</id>
+            <hivasAzonosito>order-42</hivasAzonosito>
+            <nyugtaszam>NYGT-2026-1</nyugtaszam>
+            <tipus>NY</tipus>
+            <stornozott>false</stornozott>
+            <kelt>2026-11-11</kelt>
+            <fizmod>készpénz</fizmod>
+            <penznem>HUF</penznem>
+        </alap>
+        <osszegek>
+            <totalossz>
+                <netto>1000</netto>
+                <afa>270</afa>
+                <brutto>1270</brutto>
+            </totalossz>
+        </osszegek>
+    </nyugta>
+</xmlnyugtavalasz>

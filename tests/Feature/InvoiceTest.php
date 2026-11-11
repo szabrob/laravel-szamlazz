@@ -1,0 +1,284 @@
+<?php
+
+declare(strict_types=1);
+
+use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Http;
+use Szabrob\LaravelSzamlazz\Data\Credentials;
+use Szabrob\LaravelSzamlazz\Data\Invoice\Invoice;
+use Szabrob\LaravelSzamlazz\Data\Invoice\InvoiceLookup;
+use Szabrob\LaravelSzamlazz\Data\Invoice\InvoiceReversal;
+use Szabrob\LaravelSzamlazz\Data\Invoice\PaymentRegistration;
+use Szabrob\LaravelSzamlazz\Data\Results\InvoiceDetails;
+use Szabrob\LaravelSzamlazz\Data\Results\InvoiceResult;
+use Szabrob\LaravelSzamlazz\Enums\InvoiceType;
+use Szabrob\LaravelSzamlazz\Enums\Language;
+use Szabrob\LaravelSzamlazz\Enums\TaxPayerType;
+use Szabrob\LaravelSzamlazz\Exceptions\SzamlazzException;
+use Szabrob\LaravelSzamlazz\Facades\SzamlaAgent;
+
+function invoice(array $overrides = []): Invoice
+{
+    return Invoice::from([
+        'fulfillmentDate' => '2026-11-10',
+        'dueDate' => '2026-11-19',
+        'issueDate' => '2026-11-11',
+        'language' => 'hu',
+        'orderNumber' => 'ORDER-42',
+        'comment' => 'Köszönjük a vásárlást & a bizalmat!',
+        'seller' => [
+            'bank' => 'OTP',
+            'bankAccount' => '11111111-22222222-33333333',
+        ],
+        'buyer' => [
+            'name' => 'Kovács Bt.',
+            'postCode' => '2030',
+            'city' => 'Érd',
+            'address' => 'Tárnoki út 23.',
+            'email' => 'buyer@example.com',
+            'taxPayerType' => 1,
+            'taxNumber' => '12345678-1-42',
+        ],
+        'items' => [
+            ['name' => 'Webfejlesztés', 'quantity' => 2, 'unit' => 'óra', 'netUnitPrice' => 10000, 'vatRate' => '27'],
+            ['name' => 'Tárhely', 'quantity' => 1, 'unit' => 'db', 'netUnitPrice' => 0, 'vatRate' => 'AAM'],
+        ],
+        ...$overrides,
+    ]);
+}
+
+it('creates an invoice from typed data and returns a typed result', function () {
+    Http::fake([AGENT_URL => Http::response(file_get_contents(__DIR__.'/../Fixtures/responses/invoice.xml'), 200, [
+        'szlahu_id' => '123456',
+        'szlahu_szamlaszam' => 'E-TEST-2026-1',
+    ])]);
+
+    $result = SzamlaAgent::createInvoice(invoice());
+
+    expect($result)->toBeInstanceOf(InvoiceResult::class)
+        ->invoiceNumber->toBe('E-TEST-2026-1')
+        ->id->toBe(123456)
+        ->netTotal->toBe(20000.0)
+        ->grossTotal->toBe(25400.0)
+        ->outstandingAmount->toBe(25400.0)
+        ->customerAccountUrl->toBe('https://www.szamlazz.hu/szamla/?partguid=abc')
+        ->pdf->toBe('%PDF-1.4 test')
+        ->and($result->hasPdf())->toBeTrue()
+        ->and($result->toArray())->not->toHaveKey('pdf');
+
+    Http::assertSent(function (Request $request): bool {
+        $xml = sentXml($request, 'action-xmlagentxmlfile');
+
+        expectValidAgainstXsd($xml, 'xmlszamla');
+
+        expect($request->url())->toBe(AGENT_URL)
+            ->and($request->method())->toBe('POST')
+            ->and($request->isMultipart())->toBeTrue()
+            ->and($xml)
+            ->toContain('<szamlaagentkulcs>test-agent-key</szamlaagentkulcs>')
+            ->toContain('<valaszVerzio>2</valaszVerzio>')
+            ->toContain('<keltDatum>2026-11-11</keltDatum>')
+            ->toContain('<teljesitesDatum>2026-11-10</teljesitesDatum>')
+            ->toContain('<megjegyzes>Köszönjük a vásárlást &amp; a bizalmat!</megjegyzes>')
+            ->toContain('<adoalany>1</adoalany>')
+            ->toContain('<nettoErtek>20000</nettoErtek>')
+            ->toContain('<afaErtek>5400</afaErtek>')
+            ->toContain('<bruttoErtek>25400</bruttoErtek>')
+            ->toContain('<afakulcs>AAM</afakulcs>')
+            ->not->toContain('<dijbekero>');
+
+        return true;
+    });
+});
+
+it('casts invoice input into typed values', function () {
+    $invoice = invoice();
+
+    expect($invoice->fulfillmentDate->format('Y-m-d'))->toBe('2026-11-10')
+        ->and($invoice->language)->toBe(Language::Hungarian)
+        ->and($invoice->buyer->taxPayerType)->toBe(TaxPayerType::HasHungarianTaxNumber)
+        ->and($invoice->items)->toHaveCount(2)
+        ->and($invoice->items[0]->quantity)->toBe(2.0);
+});
+
+it('marks proformas and other invoice types', function (InvoiceType $type, string $element) {
+    Http::fake([AGENT_URL => Http::response(file_get_contents(__DIR__.'/../Fixtures/responses/invoice.xml'))]);
+
+    SzamlaAgent::createInvoice(invoice(['type' => $type]));
+
+    Http::assertSent(function (Request $request) use ($element): bool {
+        $xml = sentXml($request, 'action-xmlagentxmlfile');
+        expectValidAgainstXsd($xml, 'xmlszamla');
+
+        return str_contains($xml, "<{$element}>true</{$element}>");
+    });
+})->with([
+    [InvoiceType::Proforma, 'dijbekero'],
+    [InvoiceType::Prepayment, 'elolegszamla'],
+    [InvoiceType::Final, 'vegszamla'],
+    [InvoiceType::Corrective, 'helyesbitoszamla'],
+    [InvoiceType::DeliveryNote, 'szallitolevel'],
+]);
+
+it('throws a typed exception with the Számla Agent error code', function () {
+    Http::fake([AGENT_URL => Http::response('xmlagenterror', 200, [
+        'szlahu_error_code' => '57',
+        'szlahu_error' => urlencode('Hiányzó vevő név'),
+    ])]);
+
+    SzamlaAgent::createInvoice(invoice());
+})->throws(SzamlazzException::class, 'Számla Agent error [57]: Hiányzó vevő név');
+
+it('exposes the error code on the exception', function () {
+    Http::fake([AGENT_URL => Http::response(
+        '<?xml version="1.0" encoding="UTF-8"?><xmlszamlavalasz xmlns="http://www.szamlazz.hu/xmlszamlavalasz"><sikeres>false</sikeres><hibakod>3</hibakod><hibauzenet>Sikertelen bejelentkezés.</hibauzenet></xmlszamlavalasz>',
+    )]);
+
+    try {
+        SzamlaAgent::createInvoice(invoice());
+        $this->fail('Expected exception.');
+    } catch (SzamlazzException $exception) {
+        expect($exception->errorCode)->toBe(3)
+            ->and($exception->getMessage())->toContain('Sikertelen bejelentkezés.');
+    }
+});
+
+it('reports maintenance', function () {
+    Http::fake([AGENT_URL => Http::response('', 200, ['szlahu_down' => 'true'])]);
+
+    SzamlaAgent::createInvoice(invoice());
+})->throws(SzamlazzException::class, 'maintenance');
+
+it('requires credentials', function () {
+    config()->set('laravel-szamlazz.api_key', null);
+    app()->forgetInstance(Szabrob\LaravelSzamlazz\SzamlaAgent::class);
+    SzamlaAgent::clearResolvedInstances();
+    Http::fake();
+
+    SzamlaAgent::createInvoice(invoice());
+})->throws(SzamlazzException::class, 'credentials are missing');
+
+it('can switch credentials per call', function () {
+    Http::fake([AGENT_URL => Http::response(file_get_contents(__DIR__.'/../Fixtures/responses/invoice.xml'))]);
+
+    SzamlaAgent::withCredentials(Credentials::fromLogin('demo', 'secret'))->createInvoice(invoice());
+
+    Http::assertSent(function (Request $request): bool {
+        $xml = sentXml($request, 'action-xmlagentxmlfile');
+        expectValidAgainstXsd($xml, 'xmlszamla');
+
+        return str_contains($xml, '<felhasznalo>demo</felhasznalo>')
+            && str_contains($xml, '<jelszo>secret</jelszo>')
+            && ! str_contains($xml, 'szamlaagentkulcs');
+    });
+});
+
+it('reverses an invoice', function () {
+    Http::fake([AGENT_URL => Http::response(file_get_contents(__DIR__.'/../Fixtures/responses/invoice.xml'))]);
+
+    $result = SzamlaAgent::reverseInvoice(InvoiceReversal::from([
+        'invoiceNumber' => 'E-TEST-2026-1',
+        'issueDate' => '2026-11-12',
+        'buyerEmail' => 'buyer@example.com',
+    ]));
+
+    expect($result->invoiceNumber)->toBe('E-TEST-2026-1');
+
+    Http::assertSent(function (Request $request): bool {
+        $xml = sentXml($request, 'action-szamla_agent_st');
+        expectValidAgainstXsd($xml, 'xmlszamlast');
+
+        return str_contains($xml, '<szamlaszam>E-TEST-2026-1</szamlaszam>');
+    });
+});
+
+it('registers payments on an invoice', function () {
+    Http::fake([AGENT_URL => Http::response('', 200, ['szlahu_szamlaszam' => 'E-TEST-2026-1'])]);
+
+    SzamlaAgent::registerPayment(PaymentRegistration::from([
+        'invoiceNumber' => 'E-TEST-2026-1',
+        'payments' => [
+            ['date' => '2026-11-12', 'method' => 'átutalás', 'amount' => 25400],
+        ],
+    ]));
+
+    Http::assertSent(function (Request $request): bool {
+        $xml = sentXml($request, 'action-szamla_agent_kifiz');
+        expectValidAgainstXsd($xml, 'xmlszamlakifiz');
+
+        return str_contains($xml, '<additiv>true</additiv>') && str_contains($xml, '<osszeg>25400</osszeg>');
+    });
+});
+
+it('downloads an invoice pdf', function () {
+    Http::fake([AGENT_URL => Http::response('%PDF-1.4 test', 200, ['Content-Type' => 'application/pdf'])]);
+
+    expect(SzamlaAgent::invoicePdf(InvoiceLookup::byInvoiceNumber('E-TEST-2026-1')))->toBe('%PDF-1.4 test');
+
+    Http::assertSent(function (Request $request): bool {
+        $xml = sentXml($request, 'action-szamla_agent_pdf');
+        expectValidAgainstXsd($xml, 'xmlszamlapdf');
+
+        return str_contains($xml, '<szamlaszam>E-TEST-2026-1</szamlaszam>');
+    });
+});
+
+it('rejects a non pdf invoice pdf response', function () {
+    Http::fake([AGENT_URL => Http::response('not a pdf')]);
+
+    SzamlaAgent::invoicePdf(InvoiceLookup::byOrderNumber('ORDER-42'));
+})->throws(SzamlazzException::class, 'not a PDF');
+
+it('queries invoice data', function () {
+    Http::fake([AGENT_URL => Http::response(file_get_contents(__DIR__.'/../Fixtures/responses/invoice-data.xml'))]);
+
+    $details = SzamlaAgent::invoice(InvoiceLookup::byExternalId('ext-1'));
+
+    expect($details)->toBeInstanceOf(InvoiceDetails::class)
+        ->invoiceNumber->toBe('E-TEST-2026-1')
+        ->id->toBe(123456)
+        ->buyerName->toBe('Kovács Bt.')
+        ->grossTotal->toBe(25400.0)
+        ->and($details->dueDate?->format('Y-m-d'))->toBe('2026-11-19')
+        ->and($details->hasPdf())->toBeFalse()
+        ->and($details->xml)->toContain('<szamla');
+
+    Http::assertSent(function (Request $request): bool {
+        $xml = sentXml($request, 'action-szamla_agent_xml');
+        expectValidAgainstXsd($xml, 'xmlszamlaxml');
+
+        return str_contains($xml, '<szamlaKulsoAzon>ext-1</szamlaKulsoAzon>');
+    });
+});
+
+it('rejects an empty invoice lookup', function () {
+    Http::fake();
+
+    SzamlaAgent::invoicePdf(new InvoiceLookup);
+})->throws(InvalidArgumentException::class);
+
+it('deletes a proforma', function () {
+    Http::fake([AGENT_URL => Http::response(
+        '<?xml version="1.0" encoding="UTF-8"?><xmlszamladbkdelvalasz xmlns="http://www.szamlazz.hu/xmlszamladbkdelvalasz"><sikeres>true</sikeres></xmlszamladbkdelvalasz>',
+    )]);
+
+    SzamlaAgent::deleteProforma(InvoiceLookup::byOrderNumber('ORDER-42'));
+
+    Http::assertSent(function (Request $request): bool {
+        $xml = sentXml($request, 'action-szamla_agent_dijbekero_torlese');
+        expectValidAgainstXsd($xml, 'xmlszamladbkdel');
+
+        return str_contains($xml, '<rendelesszam>ORDER-42</rendelesszam>');
+    });
+});
+
+it('cannot delete a proforma by external id', function () {
+    SzamlaAgent::deleteProforma(InvoiceLookup::byExternalId('ext-1'));
+})->throws(InvalidArgumentException::class);
+
+it('accepts date objects as invoice dates', function () {
+    $invoice = invoice(['fulfillmentDate' => now()->setDate(2026, 11, 1), 'dueDate' => new DateTimeImmutable('2026-11-30')]);
+
+    expect($invoice->fulfillmentDate->format('Y-m-d'))->toBe('2026-11-01')
+        ->and($invoice->dueDate->format('Y-m-d'))->toBe('2026-11-30');
+});
