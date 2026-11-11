@@ -164,7 +164,9 @@ SzamlaAgent::withCredentials(Credentials::fromApiKey($tenant->szamlazz_key))
 
 ### Error handling
 
-Számla Agent errors throw `Szabrob\LaravelSzamlazz\Exceptions\SzamlazzException`. The Számla Agent error code is available in `$exception->errorCode`, the HTTP status in `$exception->httpStatus`.
+Számla Agent errors and connection failures (timeouts, DNS or network errors) throw `Szabrob\LaravelSzamlazz\Exceptions\SzamlazzException`. The Számla Agent error code is available in `$exception->errorCode`, the HTTP status in `$exception->httpStatus`, and the original exception of a connection failure in `$exception->getPrevious()`.
+
+On a timeout the document may still have been created, so look it up (for example by order number or receipt call id) before retrying.
 
 ```php
 use Szabrob\LaravelSzamlazz\Exceptions\SzamlazzException;

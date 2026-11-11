@@ -44,7 +44,8 @@ Use this skill when a Laravel application needs to create or manage Számlázz.h
 ### 4. Handle results and errors
 
 - results expose `invoiceNumber` / `receiptNumber`, totals and `pdf` (raw bytes, hidden from `toArray()`); check `hasPdf()` before storing
-- failures throw `Exceptions\SzamlazzException` with `errorCode` (Számla Agent code) and `httpStatus`
+- failures, including timeouts and connection errors, throw `Exceptions\SzamlazzException` with `errorCode` (Számla Agent code) and `httpStatus`
+- after a timeout, look the document up by order number or call id before retrying; it may already exist
 
 ## Examples
 

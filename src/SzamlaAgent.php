@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Szabrob\LaravelSzamlazz;
 
 use Carbon\CarbonImmutable;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Http\Client\Response;
 use Szabrob\LaravelSzamlazz\Data\Credentials;
@@ -144,10 +145,14 @@ class SzamlaAgent
 
     protected function send(Action $action, string $xml): Response
     {
-        $response = $this->http
-            ->timeout($this->timeout)
-            ->attach($action->field(), $xml, 'request.xml', ['Content-Type' => 'text/xml'])
-            ->post($this->baseUrl);
+        try {
+            $response = $this->http
+                ->timeout($this->timeout)
+                ->attach($action->field(), $xml, 'request.xml', ['Content-Type' => 'text/xml'])
+                ->post($this->baseUrl);
+        } catch (ConnectionException $exception) {
+            throw SzamlazzException::connectionFailed($exception);
+        }
 
         $this->guard($response);
 

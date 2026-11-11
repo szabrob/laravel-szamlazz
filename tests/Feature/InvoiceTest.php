@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Szabrob\LaravelSzamlazz\Data\Credentials;
@@ -140,6 +141,21 @@ it('exposes the error code on the exception', function () {
     } catch (SzamlazzException $exception) {
         expect($exception->errorCode)->toBe(3)
             ->and($exception->getMessage())->toContain('Sikertelen bejelentkezés.');
+    }
+});
+
+it('wraps connection failures in the package exception', function () {
+    Http::fake([AGENT_URL => Http::failedConnection('cURL error 28: Operation timed out')]);
+
+    try {
+        SzamlaAgent::createInvoice(invoice());
+        $this->fail('Expected exception.');
+    } catch (SzamlazzException $exception) {
+        expect($exception->getMessage())->toContain('Could not reach the Számla Agent service')
+            ->toContain('Operation timed out')
+            ->and($exception->getPrevious())->toBeInstanceOf(ConnectionException::class)
+            ->and($exception->errorCode)->toBeNull()
+            ->and($exception->httpStatus)->toBeNull();
     }
 });
 
