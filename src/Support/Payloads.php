@@ -198,10 +198,14 @@ final class Payloads
         ]);
     }
 
+    /**
+     * Számla Agent deletes proformas by invoice number or order number only;
+     * an external id on the lookup is ignored.
+     */
     public function deleteProforma(InvoiceLookup $lookup): string
     {
-        if ($lookup->externalId !== null || ($lookup->invoiceNumber === null && $lookup->orderNumber === null)) {
-            throw new InvalidArgumentException('A proforma can only be deleted by invoice number or order number.');
+        if ($lookup->invoiceNumber === null && $lookup->orderNumber === null) {
+            throw new InvalidArgumentException('Deleting a proforma needs an invoice number or order number; an external id alone is not supported.');
         }
 
         return $this->xml(Action::DeleteProforma, [

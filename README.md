@@ -127,7 +127,7 @@ $pdf = SzamlaAgent::invoicePdf(InvoiceLookup::byInvoiceNumber('E-ABC-2026-1'));
 // Query invoice data (InvoiceDetails, the raw XML is available in ->xml)
 $details = SzamlaAgent::invoice(InvoiceLookup::byOrderNumber('ORDER-42'), withPdf: false);
 
-// Delete a proforma
+// Delete a proforma (by invoice number or order number; an external id is ignored)
 SzamlaAgent::deleteProforma(InvoiceLookup::byInvoiceNumber('D-ABC-2026-1'));
 ```
 

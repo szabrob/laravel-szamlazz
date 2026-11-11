@@ -37,7 +37,7 @@ Use this skill when a Laravel application needs to create or manage Számlázz.h
 - `createInvoice(Invoice): InvoiceResult`, `reverseInvoice(InvoiceReversal): InvoiceResult`
 - `registerPayment(PaymentRegistration): void` (max 5 payments per call, more throws `InvalidArgumentException` before sending)
 - `invoicePdf(InvoiceLookup): string` (raw PDF bytes), `invoice(InvoiceLookup, bool $withPdf = false): InvoiceDetails`
-- `deleteProforma(InvoiceLookup): void` (invoice number or order number only)
+- `deleteProforma(InvoiceLookup): void` (needs an invoice number or order number; an external id on the lookup is ignored)
 - `createReceipt(Receipt)`, `reverseReceipt(ReceiptReversal)`, `receipt(ReceiptLookup)` return `ReceiptResult`; `sendReceipt(ReceiptEmail): void`
 - per-tenant keys: `SzamlaAgent::withCredentials(Credentials::fromApiKey($key))->createInvoice(...)`; runtime `config(['laravel-szamlazz.api_key' => ...])` changes also apply to the next facade call, but not to a client instance already injected into a long-lived object
 

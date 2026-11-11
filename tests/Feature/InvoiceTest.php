@@ -373,9 +373,29 @@ it('deletes a proforma', function () {
     });
 });
 
-it('cannot delete a proforma by external id', function () {
-    SzamlaAgent::deleteProforma(InvoiceLookup::byExternalId('ext-1'));
-})->throws(InvalidArgumentException::class);
+it('cannot delete a proforma by external id alone', function () {
+    Http::fake();
+
+    expect(fn () => SzamlaAgent::deleteProforma(InvoiceLookup::byExternalId('ext-1')))
+        ->toThrow(InvalidArgumentException::class, 'an external id alone is not supported');
+
+    Http::assertNothingSent();
+});
+
+it('deletes a proforma by invoice number when the lookup also has an external id', function () {
+    Http::fake([AGENT_URL => Http::response(
+        '<?xml version="1.0" encoding="UTF-8"?><xmlszamladbkdelvalasz xmlns="http://www.szamlazz.hu/xmlszamladbkdelvalasz"><sikeres>true</sikeres></xmlszamladbkdelvalasz>',
+    )]);
+
+    SzamlaAgent::deleteProforma(new InvoiceLookup(invoiceNumber: 'D-TEST-2026-1', externalId: 'ext-1'));
+
+    Http::assertSent(function (Request $request): bool {
+        $xml = sentXml($request, 'action-szamla_agent_dijbekero_torlese');
+        expectValidAgainstXsd($xml, 'xmlszamladbkdel');
+
+        return str_contains($xml, '<szamlaszam>D-TEST-2026-1</szamlaszam>') && ! str_contains($xml, 'ext-1');
+    });
+});
 
 it('accepts date objects as invoice dates', function () {
     $invoice = invoice(['fulfillmentDate' => now()->setDate(2026, 11, 1), 'dueDate' => new DateTimeImmutable('2026-11-30')]);
