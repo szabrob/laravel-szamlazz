@@ -12,8 +12,9 @@ use DOMElement;
 /**
  * @internal Builds Számla Agent request XML from ordered element trees.
  *
- * Null values are skipped, lists produce repeated elements, and an empty
- * associative array produces an empty element.
+ * Null values are skipped and lists produce one element per item, so an
+ * empty list produces no element. An associative array whose values are all
+ * null produces an empty element.
  */
 final class XmlBuilder
 {
@@ -43,7 +44,7 @@ final class XmlBuilder
                 continue;
             }
 
-            if (is_array($value) && array_is_list($value) && $value !== []) {
+            if (is_array($value) && array_is_list($value)) {
                 foreach ($value as $item) {
                     self::appendElement($document, $parent, $namespace, $name, $item);
                 }

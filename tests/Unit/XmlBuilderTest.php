@@ -11,7 +11,8 @@ it('skips null values, repeats lists and keeps element order', function () {
         'skip' => null,
         'flag' => false,
         'number' => 1.5,
-        'empty' => [],
+        'emptyList' => [],
+        'emptyGroup' => ['child' => null],
         'item' => [['n' => 1], ['n' => 2]],
     ]);
 
@@ -21,7 +22,8 @@ it('skips null values, repeats lists and keeps element order', function () {
         ->not->toContain('skip')
         ->toContain('<flag>false</flag>')
         ->toContain('<number>1.5</number>')
-        ->toContain('<empty/>')
+        ->not->toContain('emptyList')
+        ->toContain('<emptyGroup/>')
         ->toMatch('/<item>\s*<n>1<\/n>\s*<\/item>\s*<item>\s*<n>2<\/n>\s*<\/item>/');
 });
 

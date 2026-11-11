@@ -210,6 +210,19 @@ it('registers payments on an invoice', function () {
     });
 });
 
+it('clears payments without sending an empty payment element', function () {
+    Http::fake([AGENT_URL => Http::response('', 200, ['szlahu_szamlaszam' => 'E-TEST-2026-1'])]);
+
+    SzamlaAgent::registerPayment(new PaymentRegistration('E-TEST-2026-1', payments: [], additive: false));
+
+    Http::assertSent(function (Request $request): bool {
+        $xml = sentXml($request, 'action-szamla_agent_kifiz');
+        expectValidAgainstXsd($xml, 'xmlszamlakifiz');
+
+        return str_contains($xml, '<additiv>false</additiv>') && ! str_contains($xml, 'kifizetes');
+    });
+});
+
 it('downloads an invoice pdf', function () {
     Http::fake([AGENT_URL => Http::response('%PDF-1.4 test', 200, ['Content-Type' => 'application/pdf'])]);
 
