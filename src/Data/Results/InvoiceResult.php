@@ -6,12 +6,15 @@ namespace Szabrob\LaravelSzamlazz\Data\Results;
 
 use Spatie\LaravelData\Attributes\Hidden;
 use Spatie\LaravelData\Data;
+use Szabrob\LaravelSzamlazz\Data\Results\Concerns\HasPdf;
 
 /**
  * Result of an invoice creation or reversal.
  */
 final class InvoiceResult extends Data
 {
+    use HasPdf;
+
     public function __construct(
         public string $invoiceNumber,
         public ?int $id = null,
@@ -23,9 +26,4 @@ final class InvoiceResult extends Data
         #[Hidden]
         public ?string $pdf = null,
     ) {}
-
-    public function hasPdf(): bool
-    {
-        return $this->pdf !== null && $this->pdf !== '';
-    }
 }

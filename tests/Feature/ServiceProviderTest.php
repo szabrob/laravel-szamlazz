@@ -3,8 +3,10 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\ServiceProvider;
 use Szabrob\LaravelSzamlazz\Data\Receipt\ReceiptEmail;
 use Szabrob\LaravelSzamlazz\Facades\SzamlaAgent as SzamlaAgentFacade;
+use Szabrob\LaravelSzamlazz\LaravelSzamlazzServiceProvider;
 use Szabrob\LaravelSzamlazz\SzamlaAgent;
 
 it('registers the Számla Agent client', function () {
@@ -50,13 +52,15 @@ it('merges the package config', function () {
         ->and(config('laravel-szamlazz.download_pdf'))->toBeTrue();
 });
 
-it('publishes the config file', function () {
-    $target = config_path('laravel-szamlazz.php');
-    @unlink($target);
+it('registers the config file for publishing', function () {
+    // Asserting the publish map instead of running vendor:publish keeps parallel
+    // workers from racing on the shared Testbench skeleton config directory.
+    $source = realpath(__DIR__.'/../../config/laravel-szamlazz.php');
 
-    $this->artisan('vendor:publish', ['--tag' => 'laravel-szamlazz-config'])->assertSuccessful();
+    foreach (['laravel-szamlazz', 'laravel-szamlazz-config'] as $tag) {
+        $paths = ServiceProvider::pathsToPublish(LaravelSzamlazzServiceProvider::class, $tag);
 
-    expect($target)->toBeFile();
-
-    unlink($target);
+        expect(array_map(realpath(...), array_keys($paths)))->toBe([$source])
+            ->and(array_values($paths))->toBe([config_path('laravel-szamlazz.php')]);
+    }
 });

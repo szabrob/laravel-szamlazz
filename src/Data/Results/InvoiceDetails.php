@@ -7,6 +7,7 @@ namespace Szabrob\LaravelSzamlazz\Data\Results;
 use Carbon\CarbonImmutable;
 use Spatie\LaravelData\Attributes\Hidden;
 use Spatie\LaravelData\Data;
+use Szabrob\LaravelSzamlazz\Data\Results\Concerns\HasPdf;
 
 /**
  * Invoice data returned by the invoice XML query. The complete response is
@@ -14,6 +15,8 @@ use Spatie\LaravelData\Data;
  */
 final class InvoiceDetails extends Data
 {
+    use HasPdf;
+
     public function __construct(
         public string $invoiceNumber,
         public ?int $id = null,
@@ -34,9 +37,4 @@ final class InvoiceDetails extends Data
         #[Hidden]
         public string $xml = '',
     ) {}
-
-    public function hasPdf(): bool
-    {
-        return $this->pdf !== null && $this->pdf !== '';
-    }
 }

@@ -109,6 +109,21 @@ it('sends consistent amounts for a gross priced item', function () {
     });
 });
 
+it('places the margin scheme base before the item amounts', function () {
+    Http::fake([AGENT_URL => Http::response(file_get_contents(__DIR__.'/../Fixtures/responses/invoice.xml'))]);
+
+    SzamlaAgent::createInvoice(invoice(['marginScheme' => true, 'items' => [
+        ['name' => 'Használt autó', 'quantity' => 1, 'unit' => 'db', 'netUnitPrice' => 100, 'vatRate' => '27', 'marginSchemeBase' => 50],
+    ]]));
+
+    Http::assertSent(function (Request $request): bool {
+        $xml = sentXml($request, 'action-xmlagentxmlfile');
+        expectValidAgainstXsd($xml, 'xmlszamla');
+
+        return (bool) preg_match('/<afakulcs>27<\/afakulcs>\s*<arresAfaAlap>50<\/arresAfaAlap>\s*<nettoErtek>100<\/nettoErtek>/', $xml);
+    });
+});
+
 it('rejects inconsistent item amounts before sending', function () {
     Http::fake();
 

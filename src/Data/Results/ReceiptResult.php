@@ -7,12 +7,15 @@ namespace Szabrob\LaravelSzamlazz\Data\Results;
 use Carbon\CarbonImmutable;
 use Spatie\LaravelData\Attributes\Hidden;
 use Spatie\LaravelData\Data;
+use Szabrob\LaravelSzamlazz\Data\Results\Concerns\HasPdf;
 
 /**
  * Result of a receipt creation, reversal or query.
  */
 final class ReceiptResult extends Data
 {
+    use HasPdf;
+
     public function __construct(
         public string $receiptNumber,
         public ?int $id = null,
@@ -29,9 +32,4 @@ final class ReceiptResult extends Data
         #[Hidden]
         public ?string $pdf = null,
     ) {}
-
-    public function hasPdf(): bool
-    {
-        return $this->pdf !== null && $this->pdf !== '';
-    }
 }

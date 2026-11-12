@@ -112,7 +112,11 @@ final class Payloads
                 'megjegyzes' => $buyer->comment,
             ],
             'tetelek' => [
-                'tetel' => array_map($this->invoiceItem(...), array_values($invoice->items)),
+                'tetel' => array_map(fn (InvoiceItem $item): array => $this->lineItem(
+                    $item,
+                    ['net' => 'nettoErtek', 'vat' => 'afaErtek', 'gross' => 'bruttoErtek'],
+                    ['arresAfaAlap' => $item->marginSchemeBase],
+                ), array_values($invoice->items)),
             ],
         ]);
     }
@@ -237,7 +241,10 @@ final class Payloads
                 'rendelesSzam' => $receipt->orderNumber,
             ],
             'tetelek' => [
-                'tetel' => array_map($this->receiptItem(...), array_values($receipt->items)),
+                'tetel' => array_map(fn (ReceiptItem $item): array => $this->lineItem(
+                    $item,
+                    ['net' => 'netto', 'vat' => 'afa', 'gross' => 'brutto'],
+                ), array_values($receipt->items)),
             ],
             'kifizetesek' => $receipt->payments === [] ? null : [
                 'kifizetes' => array_map(static fn (ReceiptPayment $payment): array => [
@@ -301,9 +308,15 @@ final class Payloads
     }
 
     /**
+     * Map a line item. Invoices and receipts share the element order, but
+     * name the amount elements differently and invoices may add elements
+     * (e.g. arresAfaAlap) right before the amounts.
+     *
+     * @param  array{net: string, vat: string, gross: string}  $amountElements
+     * @param  array<string, mixed>  $beforeAmounts
      * @return array<string, mixed>
      */
-    private function invoiceItem(InvoiceItem $item): array
+    private function lineItem(InvoiceItem|ReceiptItem $item, array $amountElements, array $beforeAmounts = []): array
     {
         $amounts = Amounts::resolve($item->quantity, $item->netUnitPrice, $item->vatRate, $item->netAmount, $item->vatAmount, $item->grossAmount, $item->name);
 
@@ -314,31 +327,10 @@ final class Payloads
             'mennyisegiEgyseg' => $item->unit,
             'nettoEgysegar' => $item->netUnitPrice,
             'afakulcs' => $item->vatRate,
-            'arresAfaAlap' => $item->marginSchemeBase,
-            'nettoErtek' => $amounts['net'],
-            'afaErtek' => $amounts['vat'],
-            'bruttoErtek' => $amounts['gross'],
-            'megjegyzes' => $item->comment,
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function receiptItem(ReceiptItem $item): array
-    {
-        $amounts = Amounts::resolve($item->quantity, $item->netUnitPrice, $item->vatRate, $item->netAmount, $item->vatAmount, $item->grossAmount, $item->name);
-
-        return [
-            'megnevezes' => $item->name,
-            'azonosito' => $item->identifier,
-            'mennyiseg' => $item->quantity,
-            'mennyisegiEgyseg' => $item->unit,
-            'nettoEgysegar' => $item->netUnitPrice,
-            'afakulcs' => $item->vatRate,
-            'netto' => $amounts['net'],
-            'afa' => $amounts['vat'],
-            'brutto' => $amounts['gross'],
+            ...$beforeAmounts,
+            $amountElements['net'] => $amounts['net'],
+            $amountElements['vat'] => $amounts['vat'],
+            $amountElements['gross'] => $amounts['gross'],
             'megjegyzes' => $item->comment,
         ];
     }
