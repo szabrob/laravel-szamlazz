@@ -182,10 +182,14 @@ final class Payloads
 
     public function invoicePdf(InvoiceLookup $lookup): string
     {
+        $identifiers = $this->invoiceLookup($lookup);
+
         return $this->xml(Action::InvoicePdf, [
             ...$this->auth(),
-            ...$this->invoiceLookup($lookup),
+            'szamlaszam' => $identifiers['szamlaszam'],
+            'rendelesSzam' => $identifiers['rendelesSzam'],
             'valaszVerzio' => self::TEXT_RESPONSE,
+            'szamlaKulsoAzon' => $identifiers['szamlaKulsoAzon'],
         ]);
     }
 

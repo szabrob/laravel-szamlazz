@@ -323,6 +323,19 @@ it('downloads an invoice pdf', function () {
     });
 });
 
+it('downloads an invoice pdf by external id', function () {
+    Http::fake([AGENT_URL => Http::response('%PDF-1.4 test', 200, ['Content-Type' => 'application/pdf'])]);
+
+    expect(SzamlaAgent::invoicePdf(InvoiceLookup::byExternalId('ext-1')))->toBe('%PDF-1.4 test');
+
+    Http::assertSent(function (Request $request): bool {
+        $xml = sentXml($request, 'action-szamla_agent_pdf');
+        expectValidAgainstXsd($xml, 'xmlszamlapdf');
+
+        return str_contains($xml, '<szamlaKulsoAzon>ext-1</szamlaKulsoAzon>');
+    });
+});
+
 it('rejects a non pdf invoice pdf response', function () {
     Http::fake([AGENT_URL => Http::response('not a pdf')]);
 
