@@ -17,11 +17,24 @@ use InvalidArgumentException;
  * - gross and VAT: net = gross − VAT
  * - otherwise: net = quantity × net unit price, VAT = net × rate, gross = net + VAT
  *
- * Non-numeric VAT keys (AAM, TAM, EU, ...) count as a zero rate. Three given
- * amounts that do not add up are rejected.
+ * The VAT rate is a non-negative percentage with a dot decimal separator
+ * ("27", "5", "0", "27.0") or one of the Számla Agent VAT keys in
+ * VAT_KEYS, which count as a zero rate. Any other value (e.g. "27%" or
+ * "27,0") is rejected, so a typo never silently becomes zero VAT. Three
+ * given amounts that do not add up are rejected too.
  */
 final class Amounts
 {
+    /**
+     * Non-numeric Számla Agent VAT keys (`afakulcs`), all with zero VAT.
+     *
+     * @var list<string>
+     */
+    public const array VAT_KEYS = [
+        'TAM', 'AAM', 'EU', 'EUK', 'MAA', 'F.AFA', 'K.AFA', 'ÁKK', 'TAHK', 'TEHK',
+        'EUT', 'EUKT', 'KBAET', 'KBAUK', 'EAM', 'NAM', 'ATK', 'EUFAD37', 'EUFADE', 'EUE', 'HO',
+    ];
+
     /**
      * @return array{net: float, vat: float, gross: float}
      */
@@ -34,7 +47,7 @@ final class Amounts
         ?float $gross = null,
         ?string $item = null,
     ): array {
-        $rate = is_numeric($vatRate) ? (float) $vatRate : 0.0;
+        $rate = self::rate($vatRate, $item);
 
         if ($gross !== null && $net === null && $vat === null) {
             $net = round($gross / (1 + $rate / 100), 2);
@@ -60,6 +73,24 @@ final class Amounts
         }
 
         return ['net' => $net, 'vat' => $vat, 'gross' => $gross];
+    }
+
+    private static function rate(string $vatRate, ?string $item): float
+    {
+        if (preg_match('/^\d+(\.\d+)?$/', $vatRate) === 1) {
+            return (float) $vatRate;
+        }
+
+        if (in_array($vatRate, self::VAT_KEYS, true)) {
+            return 0.0;
+        }
+
+        throw new InvalidArgumentException(sprintf(
+            'Invalid VAT rate "%s" for line item%s: use a percentage such as "27" or "5.5", or a Számla Agent VAT key (%s).',
+            $vatRate,
+            $item !== null ? " [{$item}]" : '',
+            implode(', ', self::VAT_KEYS),
+        ));
     }
 
     private static function format(float $amount): string

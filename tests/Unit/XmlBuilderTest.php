@@ -52,3 +52,17 @@ it('calculates missing line item amounts', function () {
         ->and(Amounts::resolve(1, 100, 'TAM'))->toBe(['net' => 100.0, 'vat' => 0.0, 'gross' => 100.0])
         ->and(Amounts::resolve(1, 100, '27', vat: 30))->toBe(['net' => 100.0, 'vat' => 30.0, 'gross' => 130.0]);
 });
+
+it('accepts dot decimal VAT percentages', function () {
+    expect(Amounts::resolve(1, 100, '5.5'))->toBe(['net' => 100.0, 'vat' => 5.5, 'gross' => 105.5])
+        ->and(Amounts::resolve(1, 100, '0'))->toBe(['net' => 100.0, 'vat' => 0.0, 'gross' => 100.0]);
+});
+
+it('treats every Számla Agent VAT key as zero VAT', function (string $key) {
+    expect(Amounts::resolve(1, 100, $key))->toBe(['net' => 100.0, 'vat' => 0.0, 'gross' => 100.0]);
+})->with(Amounts::VAT_KEYS);
+
+it('rejects malformed VAT rates', function (string $vatRate) {
+    Amounts::resolve(1, 100, $vatRate, item: 'Tárhely');
+})->with(['27%', '27,0', '', ' 27', '-5', '1e1', 'aam', 'XYZ'])
+    ->throws(InvalidArgumentException::class, 'for line item [Tárhely]');

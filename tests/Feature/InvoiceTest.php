@@ -134,6 +134,16 @@ it('rejects inconsistent item amounts before sending', function () {
     Http::assertNothingSent();
 });
 
+it('rejects a malformed VAT rate before sending', function () {
+    Http::fake();
+
+    expect(fn () => SzamlaAgent::createInvoice(invoice(['items' => [
+        ['name' => 'Tárhely', 'quantity' => 1, 'unit' => 'db', 'netUnitPrice' => 100, 'vatRate' => '27%'],
+    ]])))->toThrow(InvalidArgumentException::class, 'Invalid VAT rate "27%" for line item [Tárhely]');
+
+    Http::assertNothingSent();
+});
+
 it('casts invoice input into typed values', function () {
     $invoice = invoice();
 

@@ -89,7 +89,7 @@ if ($result->hasPdf()) {
 }
 ```
 
-Line item `netAmount`, `vatAmount` and `grossAmount` are filled in when omitted, so net + VAT always equals gross. Missing amounts are derived from the given ones first (e.g. only `grossAmount` → net and VAT are calculated back from the gross), otherwise from `quantity × netUnitPrice` and a numeric `vatRate`. Non-numeric VAT keys such as `AAM`, `TAM` or `EU` count as zero VAT. If you pass all three amounts and they do not add up, an `InvalidArgumentException` is thrown before anything is sent.
+Line item `netAmount`, `vatAmount` and `grossAmount` are filled in when omitted, so net + VAT always equals gross. Missing amounts are derived from the given ones first (e.g. only `grossAmount` → net and VAT are calculated back from the gross), otherwise from `quantity × netUnitPrice` and the `vatRate`. The `vatRate` is a percentage with a dot decimal separator (`'27'`, `'5'`, `'0'`, `'5.5'`) or one of the Számla Agent VAT keys, which count as zero VAT: `TAM`, `AAM`, `EU`, `EUK`, `MAA`, `F.AFA`, `K.AFA`, `ÁKK`, `TAHK`, `TEHK`, `EUT`, `EUKT`, `KBAET`, `KBAUK`, `EAM`, `NAM`, `ATK`, `EUFAD37`, `EUFADE`, `EUE`, `HO`. Any other value (e.g. `'27%'` or `'27,0'`), or three given amounts that do not add up, throws an `InvalidArgumentException` before anything is sent.
 
 Set `type` to an `InvoiceType` to create other documents:
 
