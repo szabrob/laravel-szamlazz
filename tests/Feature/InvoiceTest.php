@@ -15,6 +15,7 @@ use Szabrob\LaravelSzamlazz\Data\Results\InvoiceResult;
 use Szabrob\LaravelSzamlazz\Enums\InvoiceType;
 use Szabrob\LaravelSzamlazz\Enums\Language;
 use Szabrob\LaravelSzamlazz\Enums\TaxPayerType;
+use Szabrob\LaravelSzamlazz\Exceptions\InvalidSzamlazzRequest;
 use Szabrob\LaravelSzamlazz\Exceptions\SzamlazzException;
 use Szabrob\LaravelSzamlazz\Facades\SzamlaAgent;
 
@@ -129,9 +130,26 @@ it('rejects inconsistent item amounts before sending', function () {
 
     expect(fn () => SzamlaAgent::createInvoice(invoice(['items' => [
         ['name' => 'Tárhely', 'quantity' => 1, 'unit' => 'db', 'netUnitPrice' => 100, 'vatRate' => '27', 'netAmount' => 100, 'vatAmount' => 27, 'grossAmount' => 130],
-    ]])))->toThrow(InvalidArgumentException::class, 'line item [Tárhely]');
+    ]])))->toThrow(InvalidSzamlazzRequest::class, 'line item [Tárhely]');
 
     Http::assertNothingSent();
+});
+
+it('rejects an invoice without line items before sending', function () {
+    Http::fake();
+
+    expect(fn () => SzamlaAgent::createInvoice(invoice(['items' => []])))
+        ->toThrow(InvalidSzamlazzRequest::class, 'The invoice needs at least one line item.');
+
+    Http::assertNothingSent();
+});
+
+it('keeps request validation errors catchable as InvalidArgumentException', function () {
+    Http::fake();
+
+    expect(fn () => SzamlaAgent::createInvoice(invoice(['items' => [
+        ['name' => 'Tárhely', 'quantity' => 1, 'unit' => 'db', 'netUnitPrice' => 100, 'vatRate' => '27%'],
+    ]])))->toThrow(InvalidArgumentException::class);
 });
 
 it('rejects a malformed VAT rate before sending', function () {
@@ -139,7 +157,7 @@ it('rejects a malformed VAT rate before sending', function () {
 
     expect(fn () => SzamlaAgent::createInvoice(invoice(['items' => [
         ['name' => 'Tárhely', 'quantity' => 1, 'unit' => 'db', 'netUnitPrice' => 100, 'vatRate' => '27%'],
-    ]])))->toThrow(InvalidArgumentException::class, 'Invalid VAT rate "27%" for line item [Tárhely]');
+    ]])))->toThrow(InvalidSzamlazzRequest::class, 'Invalid VAT rate "27%" for line item [Tárhely]');
 
     Http::assertNothingSent();
 });
@@ -297,7 +315,7 @@ it('rejects more than five payments before sending', function () {
     expect(fn () => SzamlaAgent::registerPayment(PaymentRegistration::from([
         'invoiceNumber' => 'E-TEST-2026-1',
         'payments' => array_fill(0, 6, $payment),
-    ])))->toThrow(InvalidArgumentException::class, 'at most 5 payments per registration, 6 given');
+    ])))->toThrow(InvalidSzamlazzRequest::class, 'at most 5 payments per registration, 6 given');
 
     Http::assertNothingSent();
 });
@@ -394,7 +412,7 @@ it('rejects an empty invoice lookup', function () {
     Http::fake();
 
     SzamlaAgent::invoicePdf(new InvoiceLookup);
-})->throws(InvalidArgumentException::class);
+})->throws(InvalidSzamlazzRequest::class);
 
 it('deletes a proforma', function () {
     Http::fake([AGENT_URL => Http::response(
@@ -415,7 +433,7 @@ it('cannot delete a proforma by external id alone', function () {
     Http::fake();
 
     expect(fn () => SzamlaAgent::deleteProforma(InvoiceLookup::byExternalId('ext-1')))
-        ->toThrow(InvalidArgumentException::class, 'an external id alone is not supported');
+        ->toThrow(InvalidSzamlazzRequest::class, 'an external id alone is not supported');
 
     Http::assertNothingSent();
 });

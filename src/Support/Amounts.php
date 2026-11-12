@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Szabrob\LaravelSzamlazz\Support;
 
-use InvalidArgumentException;
+use Szabrob\LaravelSzamlazz\Exceptions\InvalidSzamlazzRequest;
 
 /**
  * @internal Fills in missing line item totals so that net + VAT = gross.
@@ -21,7 +21,8 @@ use InvalidArgumentException;
  * ("27", "5", "0", "27.0") or one of the Számla Agent VAT keys in
  * VAT_KEYS, which count as a zero rate. Any other value (e.g. "27%" or
  * "27,0") is rejected, so a typo never silently becomes zero VAT. Three
- * given amounts that do not add up are rejected too.
+ * given amounts that do not add up are rejected too. Both throw an
+ * InvalidSzamlazzRequest.
  */
 final class Amounts
 {
@@ -63,13 +64,7 @@ final class Amounts
         $gross ??= round($net + $vat, 2);
 
         if (round($net + $vat, 2) !== round($gross, 2)) {
-            throw new InvalidArgumentException(sprintf(
-                'Inconsistent amounts for line item%s: net %s + VAT %s does not equal gross %s.',
-                $item !== null ? " [{$item}]" : '',
-                self::format($net),
-                self::format($vat),
-                self::format($gross),
-            ));
+            throw InvalidSzamlazzRequest::inconsistentAmounts($item, self::format($net), self::format($vat), self::format($gross));
         }
 
         return ['net' => $net, 'vat' => $vat, 'gross' => $gross];
@@ -85,12 +80,7 @@ final class Amounts
             return 0.0;
         }
 
-        throw new InvalidArgumentException(sprintf(
-            'Invalid VAT rate "%s" for line item%s: use a percentage such as "27" or "5.5", or a Számla Agent VAT key (%s).',
-            $vatRate,
-            $item !== null ? " [{$item}]" : '',
-            implode(', ', self::VAT_KEYS),
-        ));
+        throw InvalidSzamlazzRequest::invalidVatRate($vatRate, $item, self::VAT_KEYS);
     }
 
     private static function format(float $amount): string

@@ -20,6 +20,11 @@
             "role": "Developer"
         }
     ],
+    "support": {
+        "issues": "https://github.com/szabrob/laravel-szamlazz/issues",
+        "source": "https://github.com/szabrob/laravel-szamlazz",
+        "security": "https://github.com/szabrob/laravel-szamlazz/security/policy"
+    },
     "require": {
         "php": "^8.3",
         "ext-dom": "*",

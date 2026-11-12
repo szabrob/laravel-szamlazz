@@ -13,7 +13,7 @@ use Spatie\LaravelData\Data;
  * given payments replace the previously registered ones.
  *
  * Számla Agent accepts at most MAX_PAYMENTS payments per request; more are
- * rejected with an InvalidArgumentException before anything is sent.
+ * rejected with an InvalidSzamlazzRequest before anything is sent.
  */
 final class PaymentRegistration extends Data
 {

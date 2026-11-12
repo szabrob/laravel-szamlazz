@@ -9,6 +9,7 @@ use Szabrob\LaravelSzamlazz\Data\Receipt\ReceiptEmail;
 use Szabrob\LaravelSzamlazz\Data\Receipt\ReceiptLookup;
 use Szabrob\LaravelSzamlazz\Data\Receipt\ReceiptReversal;
 use Szabrob\LaravelSzamlazz\Data\Results\ReceiptResult;
+use Szabrob\LaravelSzamlazz\Exceptions\InvalidSzamlazzRequest;
 use Szabrob\LaravelSzamlazz\Exceptions\SzamlazzException;
 use Szabrob\LaravelSzamlazz\Facades\SzamlaAgent;
 
@@ -49,6 +50,15 @@ it('creates a receipt', function () {
             && str_contains($xml, '<brutto>1270</brutto>')
             && str_contains($xml, '<fizetoeszkoz>készpénz</fizetoeszkoz>');
     });
+});
+
+it('rejects a receipt without line items before sending', function () {
+    Http::fake();
+
+    expect(fn () => SzamlaAgent::createReceipt(new Receipt(prefix: 'NYGT', items: [])))
+        ->toThrow(InvalidSzamlazzRequest::class, 'The receipt needs at least one line item.');
+
+    Http::assertNothingSent();
 });
 
 it('reverses a receipt', function () {
@@ -92,7 +102,7 @@ it('returns the receipt even when its date is malformed', function () {
 
 it('rejects an empty receipt lookup', function () {
     SzamlaAgent::receipt(new ReceiptLookup);
-})->throws(InvalidArgumentException::class);
+})->throws(InvalidSzamlazzRequest::class);
 
 it('emails a receipt', function () {
     Http::fake([AGENT_URL => Http::response(

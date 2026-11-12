@@ -12,6 +12,11 @@
 
 Laravel integration for the Számlázz.hu Számla Agent API.
 
+## Requirements
+
+- PHP 8.3 or newer
+- Laravel 12 or 13
+
 ## Installation
 
 You can install the package via Composer:
@@ -46,9 +51,11 @@ SZAMLAZZ_API_KEY=your-agent-key
 # SZAMLAZZ_PASSWORD=
 
 # optional
-# SZAMLAZZ_E_INVOICE=true
-# SZAMLAZZ_DOWNLOAD_PDF=true
-# SZAMLAZZ_TIMEOUT=30
+# SZAMLAZZ_E_INVOICE=true          # create e-invoices (e-számla) instead of paper ones
+# SZAMLAZZ_DOWNLOAD_PDF=true       # return the generated PDF with invoice and receipt results
+# SZAMLAZZ_TIMEOUT=30              # HTTP timeout in seconds
+# SZAMLAZZ_AGGREGATOR=             # aggregator identifier agreed with Számlázz.hu
+# SZAMLAZZ_BASE_URL=https://www.szamlazz.hu/szamla/
 ```
 
 ## Usage
@@ -89,7 +96,7 @@ if ($result->hasPdf()) {
 }
 ```
 
-Line item `netAmount`, `vatAmount` and `grossAmount` are filled in when omitted, so net + VAT always equals gross. Missing amounts are derived from the given ones first (e.g. only `grossAmount` → net and VAT are calculated back from the gross), otherwise from `quantity × netUnitPrice` and the `vatRate`. The `vatRate` is a percentage with a dot decimal separator (`'27'`, `'5'`, `'0'`, `'5.5'`) or one of the Számla Agent VAT keys, which count as zero VAT: `TAM`, `AAM`, `EU`, `EUK`, `MAA`, `F.AFA`, `K.AFA`, `ÁKK`, `TAHK`, `TEHK`, `EUT`, `EUKT`, `KBAET`, `KBAUK`, `EAM`, `NAM`, `ATK`, `EUFAD37`, `EUFADE`, `EUE`, `HO`. Any other value (e.g. `'27%'` or `'27,0'`), or three given amounts that do not add up, throws an `InvalidArgumentException` before anything is sent.
+Line item `netAmount`, `vatAmount` and `grossAmount` are filled in when omitted, so net + VAT always equals gross. Missing amounts are derived from the given ones first (e.g. only `grossAmount` → net and VAT are calculated back from the gross), otherwise from `quantity × netUnitPrice` and the `vatRate`. The `vatRate` is a percentage with a dot decimal separator (`'27'`, `'5'`, `'0'`, `'5.5'`) or one of the Számla Agent VAT keys, which count as zero VAT: `TAM`, `AAM`, `EU`, `EUK`, `MAA`, `F.AFA`, `K.AFA`, `ÁKK`, `TAHK`, `TEHK`, `EUT`, `EUKT`, `KBAET`, `KBAUK`, `EAM`, `NAM`, `ATK`, `EUFAD37`, `EUFADE`, `EUE`, `HO`. Any other value (e.g. `'27%'` or `'27,0'`), or three given amounts that do not add up, throws an `InvalidSzamlazzRequest` before anything is sent.
 
 Set `type` to an `InvoiceType` to create other documents:
 
@@ -102,6 +109,36 @@ Invoice::from([...$data, 'type' => InvoiceType::Final]);        // végszámla
 Invoice::from([...$data, 'type' => InvoiceType::Corrective, 'correctedInvoiceNumber' => 'E-ABC-2026-1']);
 Invoice::from([...$data, 'type' => InvoiceType::DeliveryNote]); // szállítólevél
 ```
+
+### Invoice options
+
+Besides the buyer and the items, an invoice accepts optional settings. Some of the most used ones:
+
+```php
+use Szabrob\LaravelSzamlazz\Enums\InvoiceTemplate;
+use Szabrob\LaravelSzamlazz\Enums\Language;
+
+Invoice::from([
+    ...$data,
+    'language' => Language::English,           // invoice language, Hungarian by default
+    'template' => InvoiceTemplate::Basic,      // PDF template
+    'prefix' => 'WEB',                         // invoice number prefix
+    'externalId' => 'order-42',                // your own id, usable in InvoiceLookup::byExternalId()
+    'paid' => true,                            // mark the invoice as paid
+    'preview' => true,                         // return a preview PDF only, no invoice is created
+    'eInvoice' => false,                       // override SZAMLAZZ_E_INVOICE for this invoice
+    'downloadPdf' => false,                    // override SZAMLAZZ_DOWNLOAD_PDF for this invoice
+    'seller' => [
+        'bank' => 'OTP',
+        'bankAccount' => '11111111-22222222-33333333',
+        'emailReplyTo' => 'billing@example.com',
+        'emailSubject' => 'Your invoice',
+        'emailBody' => 'Thank you for your order.',
+    ],
+]);
+```
+
+The `seller` block only sets the bank, email and signatory details of this invoice; the rest of the seller data comes from your Számlázz.hu account. `InvoiceReversal` accepts the `eInvoice` and `downloadPdf` overrides too. Receipts and receipt lookups accept `downloadPdf`.
 
 ### Other invoice operations
 
@@ -168,15 +205,20 @@ An instance injected into a long-lived object (for example a singleton's constru
 
 ### Error handling
 
+Invalid requests throw `Szabrob\LaravelSzamlazz\Exceptions\InvalidSzamlazzRequest` before anything is sent, so no document is created. Examples: a malformed VAT rate, line item amounts that do not add up, an invoice or receipt without line items, more than 5 payments, or a lookup without any identifier. It extends `InvalidArgumentException`.
+
 Számla Agent errors and connection failures (timeouts, DNS or network errors) throw `Szabrob\LaravelSzamlazz\Exceptions\SzamlazzException`. The Számla Agent error code is available in `$exception->errorCode`, the HTTP status in `$exception->httpStatus`, and the original exception of a connection failure in `$exception->getPrevious()`.
 
 On a timeout the document may still have been created, so look it up (for example by order number or receipt call id) before retrying.
 
 ```php
+use Szabrob\LaravelSzamlazz\Exceptions\InvalidSzamlazzRequest;
 use Szabrob\LaravelSzamlazz\Exceptions\SzamlazzException;
 
 try {
     SzamlaAgent::createInvoice($invoice);
+} catch (InvalidSzamlazzRequest $exception) {
+    // fix the request data; nothing was sent
 } catch (SzamlazzException $exception) {
     report($exception);
 }

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Szabrob\LaravelSzamlazz\Support;
 
-use InvalidArgumentException;
 use Szabrob\LaravelSzamlazz\Data\Credentials;
 use Szabrob\LaravelSzamlazz\Data\Invoice\Invoice;
 use Szabrob\LaravelSzamlazz\Data\Invoice\InvoiceItem;
@@ -20,6 +19,7 @@ use Szabrob\LaravelSzamlazz\Data\Receipt\ReceiptPayment;
 use Szabrob\LaravelSzamlazz\Data\Receipt\ReceiptReversal;
 use Szabrob\LaravelSzamlazz\Enums\Action;
 use Szabrob\LaravelSzamlazz\Enums\InvoiceType;
+use Szabrob\LaravelSzamlazz\Exceptions\InvalidSzamlazzRequest;
 
 /**
  * @internal Maps package DTOs to Számla Agent request XML, in XSD element order.
@@ -41,6 +41,10 @@ final class Payloads
 
     public function invoice(Invoice $invoice): string
     {
+        if ($invoice->items === []) {
+            throw InvalidSzamlazzRequest::missingItems('invoice');
+        }
+
         $seller = $invoice->seller;
         $buyer = $invoice->buyer;
 
@@ -155,11 +159,7 @@ final class Payloads
     public function paymentRegistration(PaymentRegistration $registration): string
     {
         if (count($registration->payments) > PaymentRegistration::MAX_PAYMENTS) {
-            throw new InvalidArgumentException(sprintf(
-                'Számla Agent accepts at most %d payments per registration, %d given.',
-                PaymentRegistration::MAX_PAYMENTS,
-                count($registration->payments),
-            ));
+            throw InvalidSzamlazzRequest::tooManyPayments(PaymentRegistration::MAX_PAYMENTS, count($registration->payments));
         }
 
         return $this->xml(Action::RegisterPayment, [
@@ -213,7 +213,7 @@ final class Payloads
     public function deleteProforma(InvoiceLookup $lookup): string
     {
         if ($lookup->invoiceNumber === null && $lookup->orderNumber === null) {
-            throw new InvalidArgumentException('Deleting a proforma needs an invoice number or order number; an external id alone is not supported.');
+            throw InvalidSzamlazzRequest::proformaLookupWithoutNumber();
         }
 
         return $this->xml(Action::DeleteProforma, [
@@ -227,6 +227,10 @@ final class Payloads
 
     public function receipt(Receipt $receipt): string
     {
+        if ($receipt->items === []) {
+            throw InvalidSzamlazzRequest::missingItems('receipt');
+        }
+
         return $this->xml(Action::CreateReceipt, [
             'beallitasok' => [
                 ...$this->auth(),
@@ -278,7 +282,7 @@ final class Payloads
     public function receiptLookup(ReceiptLookup $lookup): string
     {
         if ($lookup->receiptNumber === null && $lookup->orderNumber === null && $lookup->callId === null) {
-            throw new InvalidArgumentException('A receipt lookup needs a receipt number, order number or call id.');
+            throw InvalidSzamlazzRequest::emptyReceiptLookup();
         }
 
         return $this->xml(Action::GetReceipt, [
@@ -345,7 +349,7 @@ final class Payloads
     private function invoiceLookup(InvoiceLookup $lookup): array
     {
         if ($lookup->invoiceNumber === null && $lookup->orderNumber === null && $lookup->externalId === null) {
-            throw new InvalidArgumentException('An invoice lookup needs an invoice number, order number or external id.');
+            throw InvalidSzamlazzRequest::emptyInvoiceLookup();
         }
 
         return [

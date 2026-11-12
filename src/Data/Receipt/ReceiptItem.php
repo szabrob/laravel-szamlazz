@@ -12,7 +12,7 @@ use Spatie\LaravelData\Data;
  * unit price and the VAT rate. The VAT rate is a percentage such as "27" or
  * "5.5", or a Számla Agent VAT key such as "AAM" or "TAM" (zero VAT); any
  * other value, and three given amounts that do not add up, throw an
- * InvalidArgumentException before the request is sent.
+ * InvalidSzamlazzRequest before the request is sent.
  */
 final class ReceiptItem extends Data
 {

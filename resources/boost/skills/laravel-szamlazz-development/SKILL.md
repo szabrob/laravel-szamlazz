@@ -22,20 +22,21 @@ Use this skill when a Laravel application needs to create or manage Számlázz.h
 
 - `composer require szabrob/laravel-szamlazz`
 - set `SZAMLAZZ_API_KEY` in `.env` (or `SZAMLAZZ_USERNAME` + `SZAMLAZZ_PASSWORD`)
-- optional: `SZAMLAZZ_E_INVOICE`, `SZAMLAZZ_DOWNLOAD_PDF`, `SZAMLAZZ_TIMEOUT`, `SZAMLAZZ_AGGREGATOR`
+- optional: `SZAMLAZZ_E_INVOICE`, `SZAMLAZZ_DOWNLOAD_PDF`, `SZAMLAZZ_TIMEOUT`, `SZAMLAZZ_AGGREGATOR`, `SZAMLAZZ_BASE_URL`
 - publish config only when needed: `php artisan vendor:publish --tag="laravel-szamlazz-config"`
 
 ### 2. Build requests with DTOs
 
 - invoices: `Data\Invoice\Invoice` with `Buyer`, optional `Seller`, `InvoiceItem[]`; `type` is an `Enums\InvoiceType` (Invoice, Proforma, Prepayment, Final, Corrective, DeliveryNote)
 - dates accept `Y-m-d` strings or `DateTimeInterface`; enums accept their backing values in `::from([...])`
-- item `netAmount`/`vatAmount`/`grossAmount` are filled in when omitted so net + VAT = gross (gross-only prices work); three given amounts that do not add up throw `InvalidArgumentException`; `vatRate` is a string: a dot-decimal percentage ("27", "5", "0", "5.5") or a Számla Agent VAT key ("AAM", "TAM", "EU", "F.AFA", ...); anything else (e.g. "27%", "27,0") throws `InvalidArgumentException`
+- item `netAmount`/`vatAmount`/`grossAmount` are filled in when omitted so net + VAT = gross (gross-only prices work); three given amounts that do not add up throw `InvalidSzamlazzRequest`; `vatRate` is a string: a dot-decimal percentage ("27", "5", "0", "5.5") or a Számla Agent VAT key ("AAM", "TAM", "EU", "F.AFA", ...); anything else (e.g. "27%", "27,0") throws `InvalidSzamlazzRequest`
+- invoices and receipts need at least one item; optional invoice settings: `language` (`Enums\Language`), `template` (`Enums\InvoiceTemplate`), `prefix`, `externalId`, `paid`, `preview` (preview PDF only, no invoice is created), and per-request `eInvoice` / `downloadPdf` overrides
 - receipts: `Data\Receipt\Receipt` with `ReceiptItem[]` and optional `ReceiptPayment[]`; use `callId` as an idempotency key
 
 ### 3. Call the client
 
 - `createInvoice(Invoice): InvoiceResult`, `reverseInvoice(InvoiceReversal): InvoiceResult`
-- `registerPayment(PaymentRegistration): void` (max 5 payments per call, more throws `InvalidArgumentException` before sending)
+- `registerPayment(PaymentRegistration): void` (max 5 payments per call, more throws `InvalidSzamlazzRequest` before sending)
 - `invoicePdf(InvoiceLookup): string` (raw PDF bytes), `invoice(InvoiceLookup, bool $withPdf = false): InvoiceDetails`
 - `deleteProforma(InvoiceLookup): void` (needs an invoice number or order number; an external id on the lookup is ignored)
 - `createReceipt(Receipt)`, `reverseReceipt(ReceiptReversal)`, `receipt(ReceiptLookup)` return `ReceiptResult`; `sendReceipt(ReceiptEmail): void`
@@ -44,6 +45,7 @@ Use this skill when a Laravel application needs to create or manage Számlázz.h
 ### 4. Handle results and errors
 
 - results expose `invoiceNumber` / `receiptNumber`, totals and `pdf` (raw bytes, hidden from `toArray()`); check `hasPdf()` before storing
+- invalid requests (bad VAT rate, inconsistent amounts, no items, more than 5 payments, empty lookups) throw `Exceptions\InvalidSzamlazzRequest` (extends `InvalidArgumentException`) before anything is sent
 - failures, including timeouts and connection errors, throw `Exceptions\SzamlazzException` with `errorCode` (Számla Agent code) and `httpStatus`
 - after a timeout, look the document up by order number or call id before retrying; it may already exist
 

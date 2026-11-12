@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Szabrob\LaravelSzamlazz\Exceptions\InvalidSzamlazzRequest;
 use Szabrob\LaravelSzamlazz\Support\Amounts;
 use Szabrob\LaravelSzamlazz\Support\XmlBuilder;
 
@@ -40,7 +41,7 @@ it('derives the missing amount from the two given ones', function () {
 
 it('rejects three amounts that do not add up', function () {
     Amounts::resolve(1, 100, '27', net: 100, vat: 27, gross: 130, item: 'Tárhely');
-})->throws(InvalidArgumentException::class, 'Inconsistent amounts for line item [Tárhely]: net 100.00 + VAT 27.00 does not equal gross 130.00.');
+})->throws(InvalidSzamlazzRequest::class, 'Inconsistent amounts for line item [Tárhely]: net 100.00 + VAT 27.00 does not equal gross 130.00.');
 
 it('accepts three amounts that add up', function () {
     expect(Amounts::resolve(1, 100, '27', net: 100.1, vat: 27.03, gross: 127.13))
@@ -65,4 +66,4 @@ it('treats every Számla Agent VAT key as zero VAT', function (string $key) {
 it('rejects malformed VAT rates', function (string $vatRate) {
     Amounts::resolve(1, 100, $vatRate, item: 'Tárhely');
 })->with(['27%', '27,0', '', ' 27', '-5', '1e1', 'aam', 'XYZ'])
-    ->throws(InvalidArgumentException::class, 'for line item [Tárhely]');
+    ->throws(InvalidSzamlazzRequest::class, 'for line item [Tárhely]');
